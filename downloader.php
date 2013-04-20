@@ -305,10 +305,9 @@ class StepExtractApp extends StepExtract
     public function execute()
     {
         parent::execute();
-        //TODO enable automatic deletion?
-        //unlink("downloader.php");
         echo "<p style=\"font-weight: bold;\">Congratulations, downloader finished!</p>";
         echo "<p><a href=\"/kwf/maintenance/setup\">start setup</a></p>";
+        unlink("downloader.php");
     }
 }
 
