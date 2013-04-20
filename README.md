@@ -9,3 +9,5 @@ This is *not* the recommended way to install koala framework, if possible use gi
 ## Usage
 
 Upload downloader.php to the document root and open in browser.
+
+The script will delete itself after it has done it's job.
