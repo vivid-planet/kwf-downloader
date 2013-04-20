@@ -65,6 +65,7 @@ class StepWelcome extends Step
     {
         echo "<p>Welcome to the Koala Framework Downloader</p>";
         echo "<p>This script will download a koala framework application plus the required libraries to run.</p>";
+        echo "<p>The recommended way is to use git on the server, but if you don't have shell access or git is not installed this downloader can be helpful.</p>";
     }
 }
 class StepCheck extends Step
