@@ -24,9 +24,6 @@ $steps = array(
     'extractApp' => 'StepExtractApp',
 );
 
-// TODO add configure form to select web repository
-// TODO select kwf branch?
-
 $step = isset($_GET['step']) ? $_GET['step'] : 'welcome';
 if (!isset($steps[$step])) throw new Exception("Invalid step");
 $stepClass = $steps[$step];
