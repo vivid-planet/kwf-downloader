@@ -8,6 +8,7 @@ function exception_error_handler($errno, $errstr, $errfile, $errline ) {
 }
 error_reporting(E_ALL);
 set_error_handler("exception_error_handler");
+set_time_limit(120);
 
 if (php_sapi_name() == 'cli') {
     throw new Exception("Start downloader.php in browser");
