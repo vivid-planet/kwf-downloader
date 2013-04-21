@@ -198,6 +198,7 @@ abstract class StepExtract extends Step
                 rmdir("$dirs[0]");
             }
             rmdir($dir);
+            unlink($this->_file);
             echo "<p>Successfully Extracted: $this->_targetDir</p>";
         } else {
             echo "<p>Already Extracted: $this->_targetDir</p>";
