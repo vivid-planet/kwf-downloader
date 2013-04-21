@@ -303,6 +303,17 @@ class StepExtractApp extends StepExtract
     public function execute()
     {
         parent::execute();
+
+        //if the apache configuration doesn't allo setting php_flag remove it
+        $response = shell_exec('wget -O /dev/null -S '.escapeshellarg($url).' 2>&1');
+        if (preg_match("  HTTP/1\.? (\d{3}) .*", $response, $m)) {
+            if ($m == 500) { //internal server error
+                $htAccess = file_get_contents('.htaccess');
+                $htAccess = str_replace('php_flag magic_quotes_gpc off', '', $htAccess);
+                file_put_contents('.htaccess', $htAccess);
+            }
+        }
+
         echo "<p style=\"font-weight: bold;\">Congratulations, downloader finished!</p>";
         echo "<p><a href=\"/kwf/maintenance/setup\">start setup</a></p>";
         unlink("downloader.php");
