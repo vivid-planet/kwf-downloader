@@ -69,30 +69,43 @@ class StepWelcome extends Step
 class StepCheck extends Step
 {
     public $name = 'Check Server Configuration';
+
+    private $_foundError = false;
+    private function _printError($msg)
+    {
+        echo "<p style\"color: red;\">".htmlspecialchars($msg)."</p>";
+        $this->_foundError = true;
+    }
+
+    public function getShowNextStep()
+    {
+        return !$this->_foundError;
+    }
+
     public function execute()
     {
         //test required executables
         exec('ls', $out, $ret);
         if ($ret) {
-            throw new Exception("can't execute system commands");
+            $this->_printError("can't execute system commands");
         }
         exec('wget --version', $out, $ret);
         if ($ret) {
-            throw new Exception("can't find wget executable");
+            $this->_printError("can't find wget executable");
         }
         exec('tar --version', $out, $ret);
         if ($ret) {
-            throw new Exception("can't find tar executable");
+            $this->_printError("can't find tar executable");
         }
 
         //test permissions
         if (!is_writeable('.')) {
-            throw new Exception("downloader.php script needs write permissions to current folder");
+            $this->_printError("downloader.php script needs write permissions to current folder");
         }
 
         //test web runs in document_root
         if (substr($_SERVER['REQUEST_URI'], 0, 15) != '/downloader.php') {
-            throw new Exception("Only installation in document root is supported, don't use subfolder");
+            $this->_printError("Only installation in document root is supported, don't use subfolder");
         }
 
         //test .htaccess functionality
@@ -101,7 +114,7 @@ class StepCheck extends Step
         RewriteRule ^(.*)$ /downloader.php [L]
         ";
         if (file_exists('.htaccess') && file_get_contents('.htaccess') != $htAccessTestContents) {
-            throw new Exception("There exists already a .htaccess in the current folder");
+            $this->_printError("There exists already a .htaccess in the current folder");
         }
         file_put_contents('.htaccess', $htAccessTestContents);
         
@@ -109,7 +122,7 @@ class StepCheck extends Step
         unlink('.htaccess');
 
         if ($pingResponse != 'pong') {
-            throw new Exception(".htaccess broken");
+            $this->_printError(".htaccess broken");
         }
         
         echo "<p>All checks required for the downloader passed.</p>\n";
@@ -305,7 +318,7 @@ class StepExtractApp extends StepExtract
     {
         parent::execute();
 
-        //if the apache configuration doesn't allo setting php_flag remove it
+        //if the apache configuration doesn't allow setting php_flag remove it
         $response = shell_exec('wget -O /dev/null -S '.escapeshellarg('http://'.$_SERVER['HTTP_HOST'].'/').' 2>&1');
         if (preg_match("#HTTP/1\.\d\s+(\d{3})\s+#", $response, $m)) {
             if ($m[1] == 500) { //internal server error
