@@ -11,6 +11,7 @@ define('LOADING_GIF', "data:image/gif;base64,R0lGODlhEAAQALMNAD8/P7+/vyoqKlVVVX9
                       "nAeOAHilBIBADs=");
 
 function exception_error_handler($errno, $errstr, $errfile, $errline ) {
+    if (error_reporting() == 0) return; // error supressed with @foo()
     throw new ErrorException($errstr, $errno, 0, $errfile, $errline);
 }
 error_reporting(E_ALL);
@@ -20,6 +21,31 @@ set_time_limit(120);
 if (php_sapi_name() == 'cli') {
     throw new Exception("Start downloader.php in browser");
 }
+
+if (isset($_REQUEST['httpBackend'])) {
+    //httpBackend can be passed (which is actually just a cache) as firewall blocks timeout which is very slow
+    $httpBackend = $_REQUEST['httpBackend'];
+} else {
+    $httpBackend = 'none';
+    exec('wget --version', $out, $ret);
+    if (!$ret) {
+        //wget exists
+        if (trim(shell_exec('wget -O - '.escapeshellarg('https://api.github.com/')))) {
+            //wget works
+            $httpBackend = 'wget';
+        }
+    }
+    if ($httpBackend == 'none') {
+        $context = stream_context_create(array('http' => array('timeout' => 5)));
+        if (trim(@file_get_contents('https://api.github.com/', false, $context))) {
+            //file_get_contents works
+            $httpBackend = 'php';
+        }
+    }
+    //TODO probably implement curl (from cli), curl (php module), fsockopen and others
+}
+define('HTTP_BACKEND', $httpBackend);
+
 
 $steps = array(
     'welcome' => 'StepWelcome',
@@ -47,14 +73,23 @@ if ($step->getShowNextStep() && isset($stepKeys[$stepNum+1])) {
     $nextStep = $stepKeys[$stepNum+1];
     $s = new $steps[$nextStep];
     $onClick = "this.innerHTML = '&nbsp;&nbsp;&nbsp;&nbsp;'; this.style.backgroundImage = 'url(".LOADING_GIF.")';";
-    echo "<p><a href=\"downloader.php?step=".$nextStep."\" onclick=\"$onClick\" style=\"background-repeat: no-repeat;\">Next Step: ".$s->name."</a></p>";
+    $url = "downloader.php?step=".$nextStep."&httpBackend=".$httpBackend;
+    echo "<p><a href=\"$url\" onclick=\"$onClick\" style=\"background-repeat: no-repeat;\">Next Step: ".$s->name."</a></p>";
 }
 echo "</div>\n";
+
+
 
 //interesting way to do a http request, but file_get_contents might be blocked or something
 function httpRequestGet($url)
 {
-    return shell_exec('wget -O - '.escapeshellarg($url));
+    if (HTTP_BACKEND == 'wget') {
+        return shell_exec('wget -O - '.escapeshellarg($url));
+    } else if (HTTP_BACKEND == 'php') {
+        return file_get_contents($url);
+    } else {
+        throw new Exception("unknown backend");
+    }
 }
 
 abstract class Step
@@ -96,10 +131,7 @@ class StepCheck extends Step
         if ($ret) {
             $this->_printError("can't execute system commands");
         }
-        exec('wget --version', $out, $ret);
-        if ($ret) {
-            $this->_printError("can't find wget executable");
-        }
+
         exec('tar --version', $out, $ret);
         if ($ret) {
             $this->_printError("can't find tar executable");
@@ -124,14 +156,26 @@ class StepCheck extends Step
             $this->_printError("There exists already a .htaccess in the current folder");
         }
         file_put_contents('.htaccess', $htAccessTestContents);
-        
-        $pingResponse = trim(httpRequestGet('http://'.$_SERVER['HTTP_HOST'].'/ping'));
+
+        $url = 'http://'.$_SERVER['HTTP_HOST'].'/ping';
+        if (HTTP_BACKEND == 'none') {
+            //with 'none' httpBackend we still might can access ourselves (as no firewall blocks)
+            //this eventually still fails because of allow_url_fopen=Off
+            //TODO try other alternatives, fsockopen and friends
+            $pingResponse = trim(file_get_contents($url));
+        } else {
+            $pingResponse = trim(httpRequestGet($url));
+        }
         unlink('.htaccess');
 
         if ($pingResponse != 'pong') {
             $this->_printError(".htaccess broken");
         }
-        
+
+        if (HTTP_BACKEND == 'none') {
+            echo "<p><strong>WARNING</strong> The downloader script can't download files as requests are not allowed/get blocked. You can still use this tool by manually uploading the required files onto your server using eg. ftp</p>\n";
+        }
+
         echo "<p>All checks required for the downloader passed.</p>\n";
         echo "<p style=\"font-style:italic;\">Note: this doesn't include all requirements needed by kwf.</p>\n";
     }
@@ -145,30 +189,45 @@ abstract class StepDownload extends Step
     {
         if (isset($_REQUEST['downloadUrl'])) {
             $url = $_REQUEST['downloadUrl'];
-            exec("wget -O ".escapeshellarg($this->_target)." ".escapeshellarg($url), $out, $ret);
-            if ($ret) {
-                echo "<p>Download failed</p>";
+            if (HTTP_BACKEND == 'wget') {
+                exec("wget -O ".escapeshellarg($this->_target)." ".escapeshellarg($url), $out, $ret);
+                if ($ret) {
+                    echo "<p>Download failed</p>";
+                }
+            } else if (HTTP_BACKEND == 'php') {
+                $fpr = fopen($url, 'r');
+                $fpw = fopen($this->_target, 'w');
+                while(!feof($fpr)) {
+                    fwrite($fpw, fread($fpr, 1024));
+                }
+                fclose($fpr);
+                fclose($fpw);
+            } else {
             }
             echo "<p>Successfully Downloaded: $this->_target</p>";
         }
         if (!file_exists($this->_target)) {
-            echo "<form action=\"downloader.php?step=".$_GET['step']."\" method=\"POST\">\n";
-            echo "<p></p>\n";
-            echo "<label for=\"appUrl\">Archive to download:</label><br />\n";
-            echo "<select id=\"predefUrls\" onchange=\"document.getElementById('downloadUrl').value=this.value;\">\n";
-            $predefinedUrls = $this->_getDownloadUrls();
-            foreach ($predefinedUrls as $k=>$r) {
-                echo "<option value=\"".htmlspecialchars($k)."\">$r</option>\n";
+            if (HTTP_BACKEND == 'none') {
+                echo "<p>Please upload $this->_target and refresh this page</p>\n";
+            } else {
+                echo "<form action=\"downloader.php?step=".$_GET['step']."&httpBackend=".HTTP_BACKEND."\" method=\"POST\">\n";
+                echo "<p></p>\n";
+                echo "<label for=\"appUrl\">Archive to download:</label><br />\n";
+                echo "<select id=\"predefUrls\" onchange=\"document.getElementById('downloadUrl').value=this.value;\">\n";
+                $predefinedUrls = $this->_getDownloadUrls();
+                foreach ($predefinedUrls as $k=>$r) {
+                    echo "<option value=\"".htmlspecialchars($k)."\">$r</option>\n";
+                }
+                echo "<option value=\"\">own archive (url)</option>\n";
+                echo "</select><br />\n";
+                $urls = array_keys($predefinedUrls);
+                echo "<input style=\"width: 600px;\" type=\"text\" name=\"downloadUrl\" id=\"downloadUrl\" value=\"".$urls[0]."\"><br />\n";
+                $onClick = "this.parentNode.style.backgroundImage = 'url(".LOADING_GIF.")'; this.style.visibility = 'hidden';";
+                echo "<p style=\"background-repeat: no-repeat;\">";
+                echo "<input type=\"submit\" value=\"Download\" onclick=\"$onClick\" />\n";
+                echo "</p>";
+                echo "</form>\n";
             }
-            echo "<option value=\"\">own archive (url)</option>\n";
-            echo "</select><br />\n";
-            $urls = array_keys($predefinedUrls);
-            echo "<input style=\"width: 600px;\" type=\"text\" name=\"downloadUrl\" id=\"downloadUrl\" value=\"".$urls[0]."\"><br />\n";
-            $onClick = "this.parentNode.style.backgroundImage = 'url(".LOADING_GIF.")'; this.style.visibility = 'hidden';";
-            echo "<p style=\"background-repeat: no-repeat;\">";
-            echo "<input type=\"submit\" value=\"Download\" onclick=\"$onClick\" />\n";
-            echo "</p>";
-            echo "</form>\n";
         } else {
             echo "<p>Using: $this->_target</p>";
         }
@@ -233,10 +292,17 @@ class StepDownloadApp extends StepDownload
 
     public function execute()
     {
-        echo "<p>Plase choose the application you want to install. This can be either
-                 a kwf demo application or your own. If the application code is hosted on github you can
-                 use the github archive functionality.<br />
-                 You can also upload $this->_target manually.</p>\n";
+        if (HTTP_BACKEND == 'none') {
+            echo "<p>Plase upload the application you want to install. This can be either
+                    a kwf demo application or your own. If the application code is hosted on github you can
+                    use the github archive functionality.<br />
+                    <a href=\"https://github.com/vivid-planet/kwf-cms-demo/archive/master.tar.gz\">Download Example: kwf-cms-demo</a> </p>\n";
+        } else {
+            echo "<p>Plase choose the application you want to install. This can be either
+                    a kwf demo application or your own. If the application code is hosted on github you can
+                    use the github archive functionality.<br />
+                    You can also upload $this->_target manually.</p>\n";
+        }
         parent::execute();
     }
 
@@ -259,8 +325,14 @@ class StepDownloadKwf extends StepDownload
 
     public function execute()
     {
-        echo "<p>Plase choose the Koala Framework Version you want to install.<br />
-                 You can also upload $this->_target manually.</p>\n";
+        if (HTTP_BACKEND == 'none') {
+            echo "<p>Plase upload the Koala Framework Version you want to install. (it has to match the required version for your application)<br />
+                    <a href=\"https://github.com/vivid-planet/koala-framework/archive/3.3-installer.tar.gz\">Download Example: 3.3-installer branch</a>
+                    </p>\n";
+        } else {
+            echo "<p>Plase choose the Koala Framework Version you want to install. (it has to match the required version for your application)<br />
+                    You can also upload $this->_target manually.</p>\n";
+        }
         parent::execute();
     }
 
@@ -281,8 +353,13 @@ class StepDownloadLibrary extends StepDownload
 
     public function execute()
     {
-        echo "<p>Plase choose the library you want to install, usually default should suffice.<br />
-                 You can also upload $this->_target manually.</p>\n";
+        if (HTTP_BACKEND == 'none') {
+            echo "<p>Plase upload the library you want to install.<br />
+                    <a href=\"https://github.com/vivid-planet/library/archive/master.tar.gz\">Download Default</a></p>\n";
+        } else {
+            echo "<p>Plase choose the library you want to install, usually default should suffice.<br />
+                    You can also upload $this->_target manually.</p>\n";
+        }
         parent::execute();
     }
 
@@ -326,7 +403,12 @@ class StepExtractApp extends StepExtract
         parent::execute();
 
         //if the apache configuration doesn't allow setting php_flag remove it
-        $response = shell_exec('wget -O /dev/null -S '.escapeshellarg('http://'.$_SERVER['HTTP_HOST'].'/').' 2>&1');
+        if (HTTP_BACKEND == 'wget') {
+            $response = shell_exec('wget -O /dev/null -S '.escapeshellarg('http://'.$_SERVER['HTTP_HOST'].'/').' 2>&1');
+        } else {
+            @file_get_contents('http://'.$_SERVER['HTTP_HOST'].'/');
+            $response = implode("\n", $http_response_header);
+        }
         if (preg_match("#HTTP/1\.\d\s+(\d{3})\s+#", $response, $m)) {
             if ($m[1] == 500) { //internal server error
                 $htAccess = file_get_contents('.htaccess');
