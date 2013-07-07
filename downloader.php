@@ -372,7 +372,7 @@ class StepDownloadLibrary extends StepDownload
     protected function _getDownloadUrls()
     {
         $ret = array(
-            'https://github.com/vivid-planet/library/archive/master.tar.gz' => 'default'
+            'https://github.com/vivid-planet/library/archive/master.tar.gz' => 'Default (Recommended)'
         );
         return $ret;
     }
