@@ -51,11 +51,12 @@ $steps = array(
     'welcome' => 'StepWelcome',
     'check' => 'StepCheck',
     'downloadApp' => 'StepDownloadApp',
+    'extractApp' => 'StepExtractApp',
     'downloadKwf' => 'StepDownloadKwf',
     'downloadLibrary' => 'StepDownloadLibrary',
     'extractKwf' => 'StepExtractKwf',
     'extractLibrary' => 'StepExtractLibrary',
-    'extractApp' => 'StepExtractApp',
+    'moveApp' => 'StepMoveApp',
 );
 
 $step = isset($_GET['step']) ? $_GET['step'] : 'welcome';
@@ -243,7 +244,6 @@ abstract class StepExtract extends Step
 {
     protected $_file;
     protected $_targetDir;
-    protected $_keepDir = true;
 
     protected function _alreadyExtracted()
     {
@@ -267,16 +267,7 @@ abstract class StepExtract extends Step
             if (!is_dir($dirs[0])) {
                 throw new Exception("no directory extracted");
             }
-            if ($this->_keepDir) {
-                rename("$dirs[0]",  $this->_targetDir);
-            } else {
-                exec("mv $dirs[0]/* $this->_targetDir", $out, $ret);
-                if ($ret) {
-                    throw new Exception("Extraction failed");
-                }
-                exec("mv $dirs[0]/.* $this->_targetDir", $out, $ret);
-                rmdir("$dirs[0]");
-            }
+            rename("$dirs[0]",  $this->_targetDir);
             rmdir($dir);
             unlink($this->_file);
             echo "<p>Successfully Extracted: $this->_targetDir</p>";
@@ -388,19 +379,27 @@ class StepExtractLibrary extends StepExtract
     protected $_file = 'library.tar.gz';
     protected $_targetDir = 'library';
 }
+
 class StepExtractApp extends StepExtract
 {
     public $name = 'Extract App';
     protected $_file = 'app.tar.gz';
-    protected $_targetDir = '.';
-    protected $_keepDir = false;
-    protected function _alreadyExtracted()
-    {
-        return file_exists($this->_targetDir.'/bootstrap.php');
-    }
+    protected $_targetDir = 'app-temp';
+}
+
+class StepMoveApp extends Step
+{
     public function execute()
     {
-        parent::execute();
+        exec("mv app-temp/* .", $out, $ret);
+        if ($ret) {
+            throw new Exception("Moving app failed");
+        }
+        exec("mv app-temp/.* .", $out, $ret);
+        if ($ret) {
+            throw new Exception("Moving app failed");
+        }
+        rmdir("app-temp");
 
         //if the apache configuration doesn't allow setting php_flag remove it
         if (HTTP_BACKEND == 'wget') {
@@ -422,3 +421,4 @@ class StepExtractApp extends StepExtract
         unlink("downloader.php");
     }
 }
+
