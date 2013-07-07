@@ -318,7 +318,7 @@ class StepDownloadKwf extends StepDownload
     {
         if (HTTP_BACKEND == 'none') {
             echo "<p>Plase upload the Koala Framework Version you want to install. (it has to match the required version for your application)<br />
-                    <a href=\"https://github.com/vivid-planet/koala-framework/archive/3.3-installer.tar.gz\">Download Example: 3.3-installer branch</a>
+                    <a href=\"https://github.com/vivid-planet/koala-framework/archive/master.tar.gz\">Download Example: master branch</a>
                     </p>\n";
         } else {
             echo "<p>Plase choose the Koala Framework Version you want to install. (it has to match the required version for your application)<br />
