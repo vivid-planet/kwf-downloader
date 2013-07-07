@@ -330,9 +330,24 @@ class StepDownloadKwf extends StepDownload
     protected function _getDownloadUrls()
     {
         $ret = array();
+        $ini = parse_ini_file('app-temp/config.ini', true);
+        $ghUser = $ghRepo = null;
+        if (isset($ini['production']['updateDownloader']['kwf']['github']['repository'])) {
+            $ghUser = $ini['production']['updateDownloader']['kwf']['github']['user'];
+            $ghRepo = $ini['production']['updateDownloader']['kwf']['github']['repository'];
+        }
+        if (!$ghUser) $ghUser = 'vivid-planet';
+        if (!$ghRepo) $ghRepo = 'koala-framework';
+        $ghBranch = trim(file_get_contents('app-temp/kwf_branch'));
+
+        $ret["https://github.com/$ghUser/$ghRepo/archive/$ghBranch.tar.gz"] = "$ghUser/$ghRepo $ghBranch (Recommended)";
+
         $kwfBranches = json_decode(httpRequestGet('https://api.github.com/repos/vivid-planet/koala-framework/branches'));
         foreach ($kwfBranches as $b) {
-            $ret["https://github.com/vivid-planet/koala-framework/archive/$b->name.tar.gz"] = $b->name;
+            $url = "https://github.com/vivid-planet/koala-framework/archive/$b->name.tar.gz";
+            if (!isset($ret[$url])) {
+                $ret[$url] = 'vivid-planet/koala-framework '.$b->name;
+            }
         }
         return $ret;
     }
