@@ -211,17 +211,37 @@ abstract class StepDownload extends Step
             if (HTTP_BACKEND == 'none') {
                 echo "<p>Please upload $this->_target and refresh this page</p>\n";
             } else {
+                //that's a bit ugly - probably this should be a function. But it works :D
+                $updateUrlJs  = "if (document.getElementById('predefUrls').value=='github') { ";
+                $updateUrlJs .= "  if (document.getElementById('ghUser').value && document.getElementById('ghRepo').value && document.getElementById('ghBranch').value) { ";
+                $updateUrlJs .= "    document.getElementById('downloadUrl').value = 'https://github.com/'+document.getElementById('ghUser').value+'/'+document.getElementById('ghRepo').value+'/archive/'+document.getElementById('ghBranch').value+'.tar.gz'; ";
+                $updateUrlJs .= "  } else { document.getElementById('downloadUrl').value = ''; }";
+                $updateUrlJs .= "} else { ";
+                $updateUrlJs .= "  document.getElementById('downloadUrl').value=document.getElementById('predefUrls').value; ";
+                $updateUrlJs .= "}";
                 echo "<form action=\"downloader.php?step=".$_GET['step']."&httpBackend=".HTTP_BACKEND."\" method=\"POST\">\n";
                 echo "<p></p>\n";
                 echo "<label for=\"appUrl\">Archive to download:</label><br />\n";
-                echo "<select id=\"predefUrls\" onchange=\"document.getElementById('downloadUrl').value=this.value;\">\n";
+                echo "<select id=\"predefUrls\" onchange=\"if (this.value=='github') { document.getElementById('githubRepo').style.display='block'; } else { document.getElementById('githubRepo').style.display='none'; } $updateUrlJs\">\n";
                 $predefinedUrls = $this->_getDownloadUrls();
                 foreach ($predefinedUrls as $k=>$r) {
                     echo "<option value=\"".htmlspecialchars($k)."\">$r</option>\n";
                 }
+                echo "<option value=\"github\">own github repository</option>\n";
                 echo "<option value=\"\">own archive (url)</option>\n";
                 echo "</select><br />\n";
+
+                echo "<div id=\"githubRepo\" style=\"display:none\">\n";
+                echo "  <label for=\"ghUser\" style=\"width: 100px; display: block; float: left;\">User:</label>\n";
+                echo "  <input onkeyup=\"$updateUrlJs\" id=\"ghUser\" /><br />\n";
+                echo "  <label for=\"ghRepo\" style=\"width: 100px; display: block; float: left;\">Repository:</label>\n";
+                echo "  <input onkeyup=\"$updateUrlJs\" id=\"ghRepo\" /><br />\n";
+                echo "  <label for=\"ghBranch\" style=\"width: 100px; display: block; float: left;\">Branch:</label>\n";
+                echo "  <input onkeyup=\"$updateUrlJs\" id=\"ghBranch\" value=\"master\" />\n";
+                echo "</div>\n";
+
                 $urls = array_keys($predefinedUrls);
+                echo "<br />Download Url:<br />\n";
                 echo "<input style=\"width: 600px;\" type=\"text\" name=\"downloadUrl\" id=\"downloadUrl\" value=\"".$urls[0]."\"><br />\n";
                 $onClick = "this.parentNode.style.backgroundImage = 'url(".LOADING_GIF.")'; this.style.visibility = 'hidden';";
                 echo "<p style=\"background-repeat: no-repeat;\">";
