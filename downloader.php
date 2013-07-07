@@ -364,6 +364,7 @@ class StepDownloadKwf extends StepDownload
 
         $kwfBranches = json_decode(httpRequestGet('https://api.github.com/repos/vivid-planet/koala-framework/branches'));
         foreach ($kwfBranches as $b) {
+            if ($b->name == '3.2' || $b->name == '3.3') continue; //don't support setup
             $url = "https://github.com/vivid-planet/koala-framework/archive/$b->name.tar.gz";
             if (!isset($ret[$url])) {
                 $ret[$url] = 'vivid-planet/koala-framework '.$b->name;
