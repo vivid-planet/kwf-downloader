@@ -425,6 +425,7 @@ class StepExtractApp extends StepExtract
 
 class StepMoveApp extends Step
 {
+    public $name = 'Move App';
     public function execute()
     {
         exec("mv app-temp/* .", $out, $ret);
@@ -432,9 +433,7 @@ class StepMoveApp extends Step
             throw new Exception("Moving app failed");
         }
         exec("mv app-temp/.* .", $out, $ret);
-        if ($ret) {
-            throw new Exception("Moving app failed");
-        }
+
         rmdir("app-temp");
 
         //if the apache configuration doesn't allow setting php_flag remove it
