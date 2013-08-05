@@ -127,7 +127,6 @@ class StepCheck extends Step
 
     public function execute()
     {
-    var_dump($_SERVER);
         //test required executables
         exec('ls', $out, $ret);
         if ($ret) {
@@ -144,17 +143,12 @@ class StepCheck extends Step
             $this->_printError("Downloader script needs write permissions to current folder");
         }
 
-        //test web runs in document_root
-        if (substr($_SERVER['REQUEST_URI'], 0, 15) != '/downloader.php') {
-            $this->_printError("Only installation in document root is supported, don't use subfolder");
-        }
-
         $selfFileName = substr($_SERVER['PHP_SELF'], strrpos($_SERVER['PHP_SELF'], '/')+1);
 
         //test .htaccess functionality
         $htAccessTestContents = "RewriteEngine on
         RewriteCond %{REQUEST_URI} !^/*($selfFileName)/?
-        RewriteRule ^(.*)$ /$selfFileName [L]
+        RewriteRule ^(.*)$ $selfFileName [L]
         ";
         if (file_exists('.htaccess') && file_get_contents('.htaccess') != $htAccessTestContents) {
             $this->_printError("There exists already a .htaccess in the current folder");
