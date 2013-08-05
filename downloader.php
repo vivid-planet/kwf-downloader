@@ -19,7 +19,7 @@ set_error_handler("exception_error_handler");
 set_time_limit(120);
 
 if (php_sapi_name() == 'cli') {
-    throw new Exception("Start downloader.php in browser");
+    throw new Exception("Please open Downloader Script in browser");
 }
 
 if (isset($_REQUEST['httpBackend'])) {
@@ -74,7 +74,7 @@ if ($step->getShowNextStep() && isset($stepKeys[$stepNum+1])) {
     $nextStep = $stepKeys[$stepNum+1];
     $s = new $steps[$nextStep];
     $onClick = "this.innerHTML = '&nbsp;&nbsp;&nbsp;&nbsp;'; this.style.backgroundImage = 'url(".LOADING_GIF.")';";
-    $url = "downloader.php?step=".$nextStep."&httpBackend=".$httpBackend;
+    $url = $_SERVER['PHP_SELF']."?step=".$nextStep."&httpBackend=".$httpBackend;
     echo "<p><a href=\"$url\" onclick=\"$onClick\" style=\"background-repeat: no-repeat;\">Next Step: ".$s->name."</a></p>";
 }
 echo "</div>\n";
@@ -127,6 +127,7 @@ class StepCheck extends Step
 
     public function execute()
     {
+    var_dump($_SERVER);
         //test required executables
         exec('ls', $out, $ret);
         if ($ret) {
@@ -140,7 +141,7 @@ class StepCheck extends Step
 
         //test permissions
         if (!is_writeable('.')) {
-            $this->_printError("downloader.php script needs write permissions to current folder");
+            $this->_printError("Downloader script needs write permissions to current folder");
         }
 
         //test web runs in document_root
@@ -148,10 +149,12 @@ class StepCheck extends Step
             $this->_printError("Only installation in document root is supported, don't use subfolder");
         }
 
+        $selfFileName = substr($_SERVER['PHP_SELF'], strrpos($_SERVER['PHP_SELF'], '/')+1);
+
         //test .htaccess functionality
         $htAccessTestContents = "RewriteEngine on
-        RewriteCond %{REQUEST_URI} !^/*(downloader.php)/?
-        RewriteRule ^(.*)$ /downloader.php [L]
+        RewriteCond %{REQUEST_URI} !^/*($selfFileName)/?
+        RewriteRule ^(.*)$ /$selfFileName [L]
         ";
         if (file_exists('.htaccess') && file_get_contents('.htaccess') != $htAccessTestContents) {
             $this->_printError("There exists already a .htaccess in the current folder");
@@ -220,7 +223,7 @@ abstract class StepDownload extends Step
                 $updateUrlJs .= "} else { ";
                 $updateUrlJs .= "  document.getElementById('downloadUrl').value=document.getElementById('predefUrls').value; ";
                 $updateUrlJs .= "}";
-                echo "<form action=\"downloader.php?step=".$_GET['step']."&httpBackend=".HTTP_BACKEND."\" method=\"POST\">\n";
+                echo "<form action=\"".$_SERVER['PHP_SELF']."?step=".$_GET['step']."&httpBackend=".HTTP_BACKEND."\" method=\"POST\">\n";
                 echo "<p></p>\n";
                 echo "<label for=\"appUrl\">Archive to download:</label><br />\n";
                 echo "<select id=\"predefUrls\" onchange=\"if (this.value=='github') { document.getElementById('githubRepo').style.display='block'; } else { document.getElementById('githubRepo').style.display='none'; } $updateUrlJs\">\n";
@@ -454,7 +457,9 @@ class StepMoveApp extends Step
 
         echo "<p style=\"font-weight: bold;\">Congratulations, downloader finished!</p>";
         echo "<p><a href=\"/kwf/maintenance/setup\">start setup</a></p>";
-        unlink("downloader.php");
+
+        $selfFileName = substr($_SERVER['PHP_SELF'], strrpos($_SERVER['PHP_SELF'], '/')+1);
+        unlink($selfFileName); //our job is done, now commit suicide
     }
 }
 
