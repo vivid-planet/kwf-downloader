@@ -1,5 +1,7 @@
 <?php
-if (isset($_SERVER['REQUEST_URI']) && $_SERVER['REQUEST_URI'] == '/ping') die('pong'); //for testing .htaccess functionality
+$selfFileName = substr($_SERVER['PHP_SELF'], strrpos($_SERVER['PHP_SELF'], '/')+1);
+$selfBaseUrl = substr($_SERVER['PHP_SELF'], 0, strrpos($_SERVER['PHP_SELF'], '/'));
+if (isset($_SERVER['REQUEST_URI']) && $_SERVER['REQUEST_URI'] == $selfBaseUrl.'/ping') die('pong'); //for testing .htaccess functionality
 
 define('LOADING_GIF', "data:image/gif;base64,R0lGODlhEAAQALMNAD8/P7+/vyoqKlVVVX9/fxUVFUBAQGBgYMDAwC8vL5CQkP///wAAAP///wAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQJAAANACw".
                       "AAAAAEAAQAAAEPbDJSau9OOvNew0AEHDA8wCkiW6g6AXHMU4LgizUYRgEZdsUggFAQCgUP+AERggcFYHaDaMgEBQchBNhiQAAIfkECQAADQAsAAAAABAAEAAABDuwyUmrvTYAEDAFzwN4".
@@ -127,6 +129,8 @@ class StepCheck extends Step
 
     public function execute()
     {
+        global $selfFileName, $selfBaseUrl;
+
         //test required executables
         exec('ls', $out, $ret);
         if ($ret) {
@@ -143,8 +147,6 @@ class StepCheck extends Step
             $this->_printError("Downloader script needs write permissions to current folder");
         }
 
-        $selfFileName = substr($_SERVER['PHP_SELF'], strrpos($_SERVER['PHP_SELF'], '/')+1);
-
         //test .htaccess functionality
         $htAccessTestContents = "RewriteEngine on
         RewriteCond %{REQUEST_URI} !^/*($selfFileName)/?
@@ -155,7 +157,7 @@ class StepCheck extends Step
         }
         file_put_contents('.htaccess', $htAccessTestContents);
 
-        $url = 'http://'.$_SERVER['HTTP_HOST'].'/ping';
+        $url = 'http://'.$_SERVER['HTTP_HOST'].$selfBaseUrl.'/ping';
         if (HTTP_BACKEND == 'none') {
             //with 'none' httpBackend we still might can access ourselves (as no firewall blocks)
             //this eventually still fails because of allow_url_fopen=Off
@@ -426,6 +428,7 @@ class StepMoveApp extends Step
     public $name = 'Move App';
     public function execute()
     {
+        global $selfFileName, $selfBaseUrl;
         exec("mv app-temp/* .", $out, $ret);
         if ($ret) {
             throw new Exception("Moving app failed");
@@ -436,9 +439,9 @@ class StepMoveApp extends Step
 
         //if the apache configuration doesn't allow setting php_flag remove it
         if (HTTP_BACKEND == 'wget') {
-            $response = shell_exec('wget -O /dev/null -S '.escapeshellarg('http://'.$_SERVER['HTTP_HOST'].'/').' 2>&1');
+            $response = shell_exec('wget -O /dev/null -S '.escapeshellarg('http://'.$_SERVER['HTTP_HOST'].$selfBaseUrl).' 2>&1');
         } else {
-            @file_get_contents('http://'.$_SERVER['HTTP_HOST'].'/');
+            @file_get_contents('http://'.$_SERVER['HTTP_HOST'].$selfBaseUrl);
             $response = implode("\n", $http_response_header);
         }
         if (preg_match("#HTTP/1\.\d\s+(\d{3})\s+#", $response, $m)) {
@@ -452,7 +455,6 @@ class StepMoveApp extends Step
         echo "<p style=\"font-weight: bold;\">Congratulations, downloader finished!</p>";
         echo "<p><a href=\"/kwf/maintenance/setup\">start setup</a></p>";
 
-        $selfFileName = substr($_SERVER['PHP_SELF'], strrpos($_SERVER['PHP_SELF'], '/')+1);
         unlink($selfFileName); //our job is done, now commit suicide
     }
 }
