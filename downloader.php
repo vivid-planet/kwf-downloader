@@ -453,7 +453,7 @@ class StepMoveApp extends Step
         }
 
         echo "<p style=\"font-weight: bold;\">Congratulations, downloader finished!</p>";
-        echo "<p><a href=\"/kwf/maintenance/setup\">start setup</a></p>";
+        echo "<p><a href=\"$selfBaseUrl/kwf/maintenance/setup\">start setup</a></p>";
 
         unlink($selfFileName); //our job is done, now commit suicide
     }
