@@ -116,7 +116,7 @@ class StepCheck extends Step
     private $_foundError = false;
     private function _printError($msg)
     {
-        echo "<p style\"color: red;\">".htmlspecialchars($msg)."</p>";
+        echo "<p style=\"color: red;\">".htmlspecialchars($msg)."</p>";
         $this->_foundError = true;
     }
 
@@ -176,9 +176,10 @@ class StepCheck extends Step
         if (HTTP_BACKEND == 'none') {
             echo "<p><strong>WARNING</strong> The downloader script can't download files as requests are not allowed/get blocked. You can still use this tool by manually uploading the required files onto your server using eg. ftp</p>\n";
         }
-
-        echo "<p>All checks required for the downloader passed.</p>\n";
-        echo "<p style=\"font-style:italic;\">Note: this doesn't include all requirements needed by kwf.</p>\n";
+        if (!$this->_foundError) {
+            echo "<p>All checks required for the downloader passed.</p>\n";
+            echo "<p style=\"font-style:italic;\">Note: this doesn't include all requirements needed by kwf.</p>\n";
+        }
     }
 }
 
