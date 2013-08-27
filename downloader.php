@@ -380,14 +380,41 @@ class StepDownloadLibrary extends StepDownload
 
     public function execute()
     {
-        if (HTTP_BACKEND == 'none') {
-            echo "<p>Plase upload the library you want to install.<br />
-                    <a href=\"https://github.com/vivid-planet/library/archive/master.tar.gz\">Download Default</a></p>\n";
+        if (is_dir('library')) {
+            echo "Using existing library folder";
         } else {
-            echo "<p>Plase choose the library you want to install, usually default should suffice.<br />
-                    You can also upload $this->_target manually.</p>\n";
+            $checkExistingDirs = array('../library', '../../library');
+            foreach ($checkExistingDirs as $dir) {
+                if (is_dir($dir) && is_dir($dir.'/zend')) {
+                    if (isset($_REQUEST['useExisting'])) {
+                        system("ln -s $dir library");
+                    }
+                }
+            }
+            if (HTTP_BACKEND == 'none') {
+                echo "<p>Plase upload the library you want to install.<br />
+                        <a href=\"https://github.com/vivid-planet/library/archive/master.tar.gz\">Download Default</a></p>\n";
+            } else {
+                echo "<p>Plase choose the library you want to install, usually default should suffice.<br />
+                        You can also upload $this->_target manually.</p>\n";
+            }
+            parent::execute();
+
+            foreach ($checkExistingDirs as $dir) {
+                if (is_dir($dir) && is_dir($dir.'/zend')) {
+                    echo "<br />Alternatively you can also use the existing library:<br />";
+                    echo "<pre><a href=\"".$_SERVER['PHP_SELF']."?step=".$_GET['step']."&httpBackend=".HTTP_BACKEND."&useExisting\">".realpath($dir)."</a></pre>";
+                    echo "(you won't have to download the 50MB)";
+                    break;
+                }
+            }
         }
-        parent::execute();
+    }
+
+    public function getShowNextStep()
+    {
+        if (parent::getShowNextStep()) return true;
+        return is_dir('library');
     }
 
     protected function _getDownloadUrls()
