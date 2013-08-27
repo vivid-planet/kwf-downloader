@@ -465,6 +465,12 @@ class StepMoveApp extends Step
 
         rmdir("app-temp");
 
+        $cfg  = "[production]\n";
+        $cfg .= "server.domain = ".$_SERVER['HTTP_HOST']."\n";
+        $cfg .= "server.baseUrl = \"".$selfBaseUrl."\"\n";
+        $cfg .= "setupFinished = false\n";
+        file_put_contents('config.local.ini', $cfg);
+
         //if the apache configuration doesn't allow setting php_flag remove it
         if (HTTP_BACKEND == 'wget') {
             $response = shell_exec('wget -O /dev/null -S '.escapeshellarg('http://'.$_SERVER['HTTP_HOST'].$selfBaseUrl).' 2>&1');
@@ -479,12 +485,6 @@ class StepMoveApp extends Step
                 file_put_contents('.htaccess', $htAccess);
             }
         }
-
-        $cfg  = "[production]\n";
-        $cfg .= "server.domain = ".$_SERVER['HTTP_HOST']."\n";
-        $cfg .= "server.baseUrl = \"".$selfBaseUrl."\"\n";
-        $cfg .= "setupFinished = false\n";
-        file_put_contents('config.local.ini', $cfg);
 
         echo "<p style=\"font-weight: bold;\">Congratulations, downloader finished!</p>";
         echo "<p><a href=\"$selfBaseUrl/kwf/maintenance/setup\">start setup</a></p>";
