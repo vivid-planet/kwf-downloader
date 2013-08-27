@@ -380,17 +380,18 @@ class StepDownloadLibrary extends StepDownload
 
     public function execute()
     {
+        $checkExistingDirs = array('../library', '../../library');
+        foreach ($checkExistingDirs as $dir) {
+            if (is_dir($dir) && is_dir($dir.'/zend')) {
+                if (isset($_REQUEST['useExisting'])) {
+                    system("ln -s $dir library");
+                }
+            }
+        }
+
         if (is_dir('library')) {
             echo "Using existing library folder";
         } else {
-            $checkExistingDirs = array('../library', '../../library');
-            foreach ($checkExistingDirs as $dir) {
-                if (is_dir($dir) && is_dir($dir.'/zend')) {
-                    if (isset($_REQUEST['useExisting'])) {
-                        system("ln -s $dir library");
-                    }
-                }
-            }
             if (HTTP_BACKEND == 'none') {
                 echo "<p>Plase upload the library you want to install.<br />
                         <a href=\"https://github.com/vivid-planet/library/archive/master.tar.gz\">Download Default</a></p>\n";
