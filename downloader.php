@@ -479,6 +479,12 @@ class StepMoveApp extends Step
             }
         }
 
+        $cfg  = "[production]\n";
+        $cfg .= "server.domain = ".$_SERVER['HTTP_HOST']."\n";
+        $cfg .= "server.baseUrl = \"".$selfBaseUrl."\"\n";
+        $cfg .= "setupFinished = false\n";
+        file_put_contents('config.local.ini', $cfg);
+
         echo "<p style=\"font-weight: bold;\">Congratulations, downloader finished!</p>";
         echo "<p><a href=\"$selfBaseUrl/kwf/maintenance/setup\">start setup</a></p>";
 
